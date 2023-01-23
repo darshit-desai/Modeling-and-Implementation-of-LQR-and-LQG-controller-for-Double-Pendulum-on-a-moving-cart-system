@@ -1,0 +1,292 @@
+clc
+clear all
+syms  m_1 m_2 l_2 l_1 g M 
+%% %Case 1: When x of the system is only measurable or observable
+A=[0 1 0 0 0 0;
+   0 0 (-g*m_1)/M 0 (-g*m_2)/M 0;
+   0 0 0 1 0 0;
+   0 0 (-g*(M+m_1))/(l_1*M) 0 (-g*m_2)/(M*l_1) 0;
+   0 0 0 0 0 1;
+   0 0 (-g*m_1)/(M*l_2) 0 (-g*(M+m_2))/(M*l_2) 0];
+B=[0;
+    1/M;
+    0;
+    1/(M*l_1);
+    0;
+    1/(M*l_2)];
+C_1=[1 0 0 0 0 0;
+    0 0 0 0 0 0;
+    0 0 0 0 0 0];
+D = 0;
+%Initial Conditions
+X0 = [0.5; 0; deg2rad(10); 0; deg2rad(5); 0];
+%Substituting values of m1 l1 l2 and M in A
+A1=double(subs(A,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+B1 = double(subs(B,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+%state space of the system
+sys_1 = ss(A1, B1, C_1, D);
+%Disturbance and Measurement noise
+B_d = 0.1*eye(6,6);
+V_t = 0.001*eye(3,3);
+[L_1,P, E] = lqe(A1, B_d, C_1, B_d,V_t);
+%A matrix with augmented state estimation
+Ac_1 = A1 - L_1*C_1;
+%state space with output state estimation
+sys1 = ss(Ac_1, [B1 L_1], C_1, 0);
+%Unit step response
+ts = 0:0.01:100;
+unitStep = 0*ts;
+unitStep(200:length(ts)) = 1;
+
+[Y1,t] = lsim(sys_1,unitStep, ts);
+[X1,t] = lsim(sys1,[unitStep;Y1'],ts);
+
+figure();
+hold on
+plot(t,Y1(:,1),'g','Linewidth',2)
+plot(t,X1(:,1),'y--','Linewidth',1)
+ylabel('State Variables')
+xlabel('time(sec)')
+legend('x(t)','Estimated x(t)')
+title('Response for output vector at step input: (x(t))')
+
+[t,x1] = ode45(@(t,x)linearsimulationforEstimation_1(t, x  ,L_1, A1, B1, C_1),ts,X0);
+figure();
+hold on
+plot(t,x1(:,1))
+plot(t,x1(:,3))
+plot(t,x1(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Linear system Observer when output vector: x(t)')
+legend('x','theta_1','theta_2')
+hold off
+
+[t,state1] = ode45(@(t,state)nonLinear1_observer(t,state,1.0,L_1),ts,X0);
+figure();
+hold on
+plot(t,state1(:,1))
+plot(t,state1(:,3))
+plot(t,state1(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Non-Linear System Observer for output vector: x(t)')
+legend('x','theta_1','theta_2')
+hold off
+%% %Case 2: When x and theta 2 of the system is only measurable or observable
+C_3=[1 0 0 0 0 0;
+    0 0 0 0 0 0;
+    0 0 0 0 1 0];
+%Substituting values of m1 l1 l2 and M in A
+A3=double(subs(A,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+B3 = double(subs(B,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+%state space of the system
+sys_3 = ss(A3, B3, C_3, D);
+%Disturbance and Measurement noise
+B_d = 0.1*eye(6,6);
+V_t = 0.01*eye(3,3);
+[L_3,P, E] = lqe(A3, B_d, C_3, B_d,V_t);
+%A matrix with augmented state estimation
+Ac_3 = A3 - L_3*C_3;
+%state space with output state estimation
+sys3 = ss(Ac_3, [B3 L_3], C_3, 0);
+%Unit step response
+ts3 = 0:0.01:100;
+unitStep = 0*ts3;
+unitStep(200:length(ts3)) = 1;
+
+[Y3,t] = lsim(sys_3,unitStep, ts3);
+[X3,t] = lsim(sys3,[unitStep;Y3'],ts3);
+
+figure();
+hold on
+plot(t,Y3(:,1),'g','Linewidth',2)
+plot(t,X3(:,1),'y--','Linewidth',1)
+ylabel('State Variables')
+xlabel('time(sec)')
+legend('x(t)','Estimated x(t)')
+title('Response for output vector at step input: (x(t)) and theta2')
+
+[t,x3] = ode45(@(t,x)linearsimulationforEstimation_3(t, x  ,L_3, A3, B3, C_3),ts3,X0);
+figure();
+hold on
+plot(t,x3(:,1))
+plot(t,x3(:,3))
+plot(t,x3(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Linear system Observer when output vector: x(t) and theta2')
+legend('x','theta_1','theta_2')
+hold off
+
+[t,state3] = ode45(@(t,state)nonLinear3_observer(t,state,1.0,L_3),ts3,X0);
+figure();
+hold on
+plot(t,state3(:,1))
+plot(t,state3(:,3))
+plot(t,state3(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Non-Linear System Observer for output vector: x(t) and theta2(t)')
+legend('x','theta_1','theta_2')
+hold off
+%% Case3 When x, theta1 and theta2 are observable
+C_4=[1 0 0 0 0 0;
+    0 0 1 0 0 0;
+    0 0 0 0 1 0];
+%Substituting values of m1 l1 l2 and M in A
+A4=double(subs(A,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+B4 = double(subs(B,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+%state space of the system
+sys_4 = ss(A4, B4, C_4, D);
+%Disturbance and Measurement noise
+B_d = 0.1*eye(6,6);
+V_t = 0.01*eye(3,3);
+[L_4,P, E] = lqe(A4, B_d, C_4, B_d,V_t);
+%A matrix with augmented state estimation
+Ac_4 = A4 - L_4*C_4;
+%state space with output state estimation
+sys4 = ss(Ac_4, [B4 L_4], C_4, 0);
+%Unit step response
+ts4 = 0:0.01:100;
+unitStep = 0*ts4;
+unitStep(200:length(ts4)) = 1;
+
+[Y4,t] = lsim(sys_4,unitStep, ts4);
+[X4,t] = lsim(sys4,[unitStep;Y4'],ts4);
+
+figure();
+hold on
+plot(t,Y4(:,1),'g','Linewidth',2)
+plot(t,X4(:,1),'y--','Linewidth',1)
+ylabel('State Variables')
+xlabel('time(sec)')
+legend('x(t)','Estimated x(t)')
+title('Response for output vector at step input: (x(t)), theta1 and theta2')
+
+[t,x4] = ode45(@(t,x)linearsimulationforEstimation_4(t, x  ,L_4, A4, B4, C_4),ts4,X0);
+figure();
+hold on
+plot(t,x4(:,1))
+plot(t,x4(:,3))
+plot(t,x4(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Linear system Observer when output vector: x(t), theta1 and theta2')
+legend('x','theta_1','theta_2')
+hold off
+
+[t,state4] = ode45(@(t,state)nonLinear4_observer(t,state,1.0,L_4),ts4,X0);
+figure();
+hold on
+plot(t,state4(:,1))
+plot(t,state4(:,3))
+plot(t,state4(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Non-Linear System Observer for output vector: x(t), theta1 and theta2(t)')
+legend('x','theta_1','theta_2')
+hold off
+
+%% Functions used in the code for case1 
+%Linear Estimation Simulation function for x(t) observable case
+function dX1 = linearsimulationforEstimation_1(t,x1,L1,A1,B1,C1)
+    y1 = [x1(1); 0; 0];
+%     Q = [10 0 0 0 0 0;
+%     0 10 0 0 0 0;
+%     0 0 1000 0 0 0;
+%     0 0 0 1000 0 0;
+%     0 0 0 0 1000 0;
+%     0 0 0 0 0 1000];
+%     R= 0.0001;
+    K1 = [316.227766016840	1113.60854371561	2393.64061272093	3023.36108957550	3512.76362080512	766.302444401543];
+    dX1 =  (A1-B1*K1)*x1+L1*(y1 - C1*x1);
+end
+%Non-Linear Estimation Simulation function for x(t) observable case
+function ds1 = nonLinear1_observer(t,x,f,l1)
+    m1 = 100; m2 = 100; M=1000; L1 = 20; L2 = 10; g = 9.81;
+    X_ = x(1);
+    X_dot = x(2);
+    theta_1 = x(3);
+    theta_dot1 = x(4);
+    theta_2 = x(5);
+    theta_dot2 = x(6);
+    ds1 = zeros(6,1);
+    y1 = [X_;0;0];
+    c_1 = [1 0 0 0 0 0; 0 0 0 0 0 0; 0 0 0 0 0 0];
+    iter = l1*(y1-c_1*x);
+    ds1(1) = X_dot+iter(1);
+    ds1(2) = (f - m1*L1*sin(theta_1)*theta_dot1^2 - (m2*L2*sin(theta_2)*theta_dot2^2 - m1*g*sin(theta_1)*cos(theta_1) - m2*g*sin(theta_2)*cos(theta_2))/(M + m1 + m2 - m1*cos(theta_1)^2 - m2*cos(theta_2)^2))+iter(2);
+    ds1(3) = theta_dot1+iter(3);
+    ds1(4) = cos(theta_1)*ds1(2)/L1 - (g*sin(theta_1)/L1)+iter(4);
+    ds1(5) = theta_dot2+iter(5);
+    ds1(6) = cos(theta_2)*ds1(2)/L2 - (g*sin(theta_2)/L2)+iter(6);
+end
+%% %% Functions used in the code for case2 
+%Linear Estimation Simulation function for x(t) observable case
+function dX1 = linearsimulationforEstimation_3(t,x1,L1,A1,B1,C1)
+    y1 = [x1(1); 0; 0];
+%     Q = [10 0 0 0 0 0;
+%     0 10 0 0 0 0;
+%     0 0 1000 0 0 0;
+%     0 0 0 1000 0 0;
+%     0 0 0 0 1000 0;
+%     0 0 0 0 0 1000];
+%     R= 0.0001;
+    K1 = [316.227766016840	1113.60854371561	2393.64061272093	3023.36108957550	3512.76362080512	766.302444401543];
+    dX1 =  (A1-B1*K1)*x1+L1*(y1 - C1*x1);
+end
+%Non-Linear Estimation Simulation function for x(t) observable case
+function ds1 = nonLinear3_observer(t,x,f,l1)
+    m1 = 100; m2 = 100; M=1000; L1 = 20; L2 = 10; g = 9.81;
+    X_ = x(1);
+    X_dot = x(2);
+    theta_1 = x(3);
+    theta_dot1 = x(4);
+    theta_2 = x(5);
+    theta_dot2 = x(6);
+    ds1 = zeros(6,1);
+    y1 = [X_;0;0];
+    c_1 = [1 0 0 0 0 0; 0 0 0 0 0 0; 0 0 0 0 0 0];
+    iter = l1*(y1-c_1*x);
+    ds1(1) = X_dot+iter(1);
+    ds1(2) = (f - m1*L1*sin(theta_1)*theta_dot1^2 - (m2*L2*sin(theta_2)*theta_dot2^2 - m1*g*sin(theta_1)*cos(theta_1) - m2*g*sin(theta_2)*cos(theta_2))/(M + m1 + m2 - m1*cos(theta_1)^2 - m2*cos(theta_2)^2))+iter(2);
+    ds1(3) = theta_dot1+iter(3);
+    ds1(4) = cos(theta_1)*ds1(2)/L1 - (g*sin(theta_1)/L1)+iter(4);
+    ds1(5) = theta_dot2+iter(5);
+    ds1(6) = cos(theta_2)*ds1(2)/L2 - (g*sin(theta_2)/L2)+iter(6);
+end
+%% Functions used in the code for case2 
+%Linear Estimation Simulation function for x(t) observable case
+function dX1 = linearsimulationforEstimation_4(t,x1,L1,A1,B1,C1)
+    y1 = [x1(1); 0; 0];
+%     Q = [10 0 0 0 0 0;
+%     0 10 0 0 0 0;
+%     0 0 1000 0 0 0;
+%     0 0 0 1000 0 0;
+%     0 0 0 0 1000 0;
+%     0 0 0 0 0 1000];
+%     R= 0.0001;
+    K1 = [316.227766016840	1113.60854371561	2393.64061272093	3023.36108957550	3512.76362080512	766.302444401543];
+    dX1 =  (A1-B1*K1)*x1+L1*(y1 - C1*x1);
+end
+%Non-Linear Estimation Simulation function for x(t) observable case
+function ds1 = nonLinear4_observer(t,x,f,l1)
+    m1 = 100; m2 = 100; M=1000; L1 = 20; L2 = 10; g = 9.81;
+    X_ = x(1);
+    X_dot = x(2);
+    theta_1 = x(3);
+    theta_dot1 = x(4);
+    theta_2 = x(5);
+    theta_dot2 = x(6);
+    ds1 = zeros(6,1);
+    y1 = [X_;0;0];
+    c_1 = [1 0 0 0 0 0; 0 0 0 0 0 0; 0 0 0 0 0 0];
+    iter = l1*(y1-c_1*x);
+    ds1(1) = X_dot+iter(1);
+    ds1(2) = (f - m1*L1*sin(theta_1)*theta_dot1^2 - (m2*L2*sin(theta_2)*theta_dot2^2 - m1*g*sin(theta_1)*cos(theta_1) - m2*g*sin(theta_2)*cos(theta_2))/(M + m1 + m2 - m1*cos(theta_1)^2 - m2*cos(theta_2)^2))+iter(2);
+    ds1(3) = theta_dot1+iter(3);
+    ds1(4) = cos(theta_1)*ds1(2)/L1 - (g*sin(theta_1)/L1)+iter(4);
+    ds1(5) = theta_dot2+iter(5);
+    ds1(6) = cos(theta_2)*ds1(2)/L2 - (g*sin(theta_2)/L2)+iter(6);
+end

@@ -1,0 +1,135 @@
+clc
+clear all
+syms  m_1 m_2 l_2 l_1 g M 
+A=[0 1 0 0 0 0;
+   0 0 (-g*m_1)/M 0 (-g*m_2)/M 0;
+   0 0 0 1 0 0;
+   0 0 (-g*(M+m_1))/(l_1*M) 0 (-g*m_2)/(M*l_1) 0;
+   0 0 0 0 0 1;
+   0 0 (-g*m_1)/(M*l_2) 0 (-g*(M+m_2))/(M*l_2) 0];
+B=[0;
+    1/M;
+    0;
+    1/(M*l_1);
+    0;
+    1/(M*l_2)];
+
+%%Checking Controllability
+A_0 = double(subs(A,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+B_0 = double(subs(B,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+disp("Controllability of the system is given by getting rank of output of MATLAB's ctrb function: ");
+disp(rank(ctrb(A_0,B_0)));
+
+%% Section for Calculating the LQR controller gain
+syms  m_1 m_2 l_2 l_1 g M 
+A=[0 1 0 0 0 0;
+   0 0 (-g*m_1)/M 0 (-g*m_2)/M 0;
+   0 0 0 1 0 0;
+   0 0 (-g*(M+m_1))/(l_1*M) 0 (-g*m_2)/(M*l_1) 0;
+   0 0 0 0 0 1;
+   0 0 (-g*m_1)/(M*l_2) 0 (-g*(M+m_2))/(M*l_2) 0];
+B=[0;
+    1/M;
+    0;
+    1/(M*l_1);
+    0;
+    1/(M*l_2)];
+
+A_1 = double(subs(A,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+B_1 = double(subs(B,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+Q = [10 0 0 0 0 0;
+    0 10 0 0 0 0;
+    0 0 1000 0 0 0;
+    0 0 0 1000 0 0;
+    0 0 0 0 1000 0;
+    0 0 0 0 0 1000];
+R= 0.0001;
+
+K_2 = lqr(A_1, B_1, Q, R);
+
+X_initial = [0.1 ; 0.1; deg2rad(15); 0.2; deg2rad(10); 0.01];
+X_final = [0;0;0;0;0;0];
+tinterval = 0:0.01:100;
+U = @(X) -K_2*(X - X_final);     %% Control input
+[t,X] = ode45(@(t,X)statespace(A_1, B_1, X, U(X)), tinterval, X_initial);
+
+figure(2)
+title('LQR on the linear controller');
+subplot(3,1,1);
+plot(t, X(:,1));
+xlabel('time(s)');
+ylabel('x');
+subplot(3,1,2);
+plot(t, X(:,2));
+xlabel('time(s)');
+ylabel('theta1');
+subplot(3,1,3);
+plot(t, X(:,3));
+xlabel('time(s)');
+ylabel('theta2');
+%% Checking stability using Lyapunov's criterion
+A_new = A_1 - B_1*K_2;
+lat11=latex(simplify(sym(A_new)));
+disp ("Eigen values of the closed loop matrix is given by: ");
+lat12=latex(sym(eig(A_new)));
+disp (eig(A_new));
+
+
+
+
+%% Simulating for a Non-Linear System
+syms  m_1 m_2 l_2 l_1 g M 
+A=[0 1 0 0 0 0;
+   0 0 (-g*m_1)/M 0 (-g*m_2)/M 0;
+   0 0 0 1 0 0;
+   0 0 (-g*(M+m_1))/(l_1*M) 0 (-g*m_2)/(M*l_1) 0;
+   0 0 0 0 0 1;
+   0 0 (-g*m_1)/(M*l_2) 0 (-g*(M+m_2))/(M*l_2) 0];
+B=[0;
+    1/M;
+    0;
+    1/(M*l_1);
+    0;
+    1/(M*l_2)];
+
+A_2 = double(subs(A,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+B_2 = double(subs(B,[M m_1 m_2 l_1 l_2 g], [1000 100 100 20 10 9.8]));
+
+X_initial = [0.1 ; 0.1; deg2rad(15); 0.2; deg2rad(10); 0.01];
+X_final = [0;0;0;0;0;0];
+tinterval = 0:0.01:100;
+[t,X2] = ode45(@(t,X2)NonLinear_for_LQR(t, X2, -K_2*X2), tinterval, X_initial);
+figure(3);
+hold on
+plot(t,X2(:,1))
+plot(t,X2(:,3))
+plot(t,X2(:,5))
+ylabel('state variables')
+xlabel('time (sec)')
+title('Non-Linear system using LQR controller')
+legend('x','theta1','theta2')
+disp(K_2);
+%% Functions definitions used in this code
+%Constructing a function to find state space matrix to feed into the ode45
+%function
+function Xdot = statespace(A, B, X, U)
+    Xdot = A*X + B*U
+end
+function dX = NonLinear_for_LQR(t,x,f)
+    m1 = 100; m2 = 100; M=1000; L1 = 20; L2 = 10; g = 9.81;
+    X_ = x(1);
+    X_dot = x(2);
+    theta_1 = x(3);
+    theta_dot1 = x(4);
+    theta_2 = x(5);
+    theta_dot2 = x(6);
+    dX = zeros(6,1);
+    dX(1) = X_dot;
+    dX(2) = (f - m1*L1*sin(theta_1)*theta_dot1^2 - m2*L2*sin(theta_2)*theta_dot2^2 - m1*g*sin(theta_1)*cos(theta_1) - m2*g*sin(theta_2)*cos(theta_2))/(M + m1 + m2 - m1*cos(theta_1)^2 - m2*cos(theta_2)^2);
+    dX(3) = theta_dot1;
+    dX(4) = cos(theta_1)*dX(2)/L1 - g*sin(theta_1)/L1;
+    dX(5) = theta_dot2;
+    dX(6) = cos(theta_2)*dX(2)/L2 - g*sin(theta_2)/L2;
+end
+
+
